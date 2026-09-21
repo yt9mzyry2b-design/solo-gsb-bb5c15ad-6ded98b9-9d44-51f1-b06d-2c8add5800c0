@@ -153,7 +153,8 @@ button.ghost-btn:hover {
 
 input[type='text'],
 input[type='number'],
-input:not([type]) {
+input:not([type]),
+select {
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
@@ -288,6 +289,65 @@ input[type='number'] {
   line-height: 1.9;
 }
 
+/* ---------- 节拍图面板 ---------- */
+.field .slash {
+  width: auto;
+  flex: none;
+}
+
+.field select {
+  flex: 1;
+}
+
+.tempo-list {
+  margin: 4px 0;
+}
+
+.tempo-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.tempo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.tempo-row span:first-child {
+  flex: 1;
+}
+
+.tempo-bpm {
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.tempo-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.tempo-add input {
+  width: 54px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
+
 /* ---------- 工具条 / 预览横幅 ---------- */
 .toolbar {
   display: flex;
@@ -301,6 +361,38 @@ input[type='number'] {
 
 .stat b {
   font-size: 16px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ruler-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ruler-switch button.active {
+  background: #0369a1;
+  border-color: #0ea5e9;
+}
+
+.snap-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.snap-toggle input {
+  accent-color: var(--accent);
 }
 
 .zoom {
@@ -396,6 +488,30 @@ input[type='number'] {
   font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
+}
+
+.bar-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(148, 163, 184, 0.18);
+  pointer-events: none;
+}
+
+.tempo-marker {
+  position: absolute;
+  top: 1px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  line-height: 1.5;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .part-block {

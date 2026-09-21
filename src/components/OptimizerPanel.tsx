@@ -1,5 +1,6 @@
 import type { Project, Selection } from '../types';
 import type { OptimizeResult } from '../lib/optimize';
+import { fmtBeatPosition } from '../lib/beatmap';
 import { fmtOffset, fmtSec } from '../lib/format';
 
 interface Props {
@@ -40,6 +41,10 @@ export default function OptimizerPanel(props: Props) {
             <div>
               已选：<b>{singer.name}</b>（{part?.name ?? '未知声部'}） · 区间 [{fmtSec(interval.start)},{' '}
               {fmtSec(interval.end)}) · 时长 {fmtSec(interval.end - interval.start)}
+            </div>
+            <div className="muted">
+              拍位：{fmtBeatPosition(project.beatMap, interval.start)} –{' '}
+              {fmtBeatPosition(project.beatMap, interval.end)}
             </div>
             <div className="range-row">
               <span>搜索范围 ±</span>

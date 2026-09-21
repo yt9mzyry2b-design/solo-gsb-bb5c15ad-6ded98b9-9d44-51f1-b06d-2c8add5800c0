@@ -1,4 +1,5 @@
 import type { Project } from '../types';
+import { sanitizeBeatMap } from './beatmap';
 
 const KEY = 'breath-relay:project:v1';
 
@@ -52,7 +53,8 @@ export function sanitizeProject(raw: unknown): Project | null {
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  return { name: str(p.name, '未命名曲目'), duration, parts, singers };
+  // 旧工程缺少 beatMap 字段时回退为 4/4、120 BPM
+  return { name: str(p.name, '未命名曲目'), duration, beatMap: sanitizeBeatMap(p.beatMap), parts, singers };
 }
 
 export function loadProject(): Project | null {

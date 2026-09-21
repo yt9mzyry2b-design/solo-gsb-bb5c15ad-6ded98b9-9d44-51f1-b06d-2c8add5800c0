@@ -22,6 +22,8 @@ export function createSampleProject(): Project {
   return {
     name: '示例 · 四部合唱《远方的风》',
     duration: 96,
+    // 4/4、120 BPM，第 25 小节（48s 处）变速到 90 BPM，用于演示跨变速点换算与吸附
+    beatMap: { beatsPerBar: 4, beatUnit: 4, bpm: 120, tempoChanges: [{ beat: 96, bpm: 90 }] },
     parts,
     singers: [
       mk('王芳', 0, [[18, 21], [44, 47], [70, 73]]),

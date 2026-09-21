@@ -1,7 +1,8 @@
 import { useRef } from 'react';
-import type { BreathInterval } from '../types';
+import type { BeatMap, BreathInterval } from '../types';
 import type { Segment } from '../lib/coverage';
-import { clamp, moveRange, resizeLeftRange, resizeRightRange, snap } from '../lib/constraints';
+import { clamp, moveRange, resizeLeftRange, resizeRightRange } from '../lib/constraints';
+import { fmtBeatPosition } from '../lib/beatmap';
 import { fmtSec } from '../lib/format';
 
 interface Props {
@@ -11,6 +12,10 @@ interface Props {
   songDuration: number;
   pxPerSec: number;
   color: string;
+  /** 节拍图：用于拍位显示 */
+  beatMap: BeatMap;
+  /** 秒吸附函数（按拍吸附或 0.1s 吸附，由上层决定） */
+  snapSec: (v: number) => number;
   selected: boolean;
   /** 预览模式下原位置半透明显示 */
   dimmed: boolean;
@@ -21,7 +26,7 @@ interface Props {
 type DragMode = 'move' | 'left' | 'right';
 
 export default function BreathBlock(props: Props) {
-  const { interval, others, songDuration, pxPerSec } = props;
+  const { interval, others, songDuration, pxPerSec, snapSec } = props;
   const drag = useRef<{ mode: DragMode; x0: number; start: number; end: number } | null>(null);
 
   const begin = (mode: DragMode) => (e: React.PointerEvent) => {
@@ -37,15 +42,15 @@ export default function BreathBlock(props: Props) {
     const delta = (e.clientX - d.x0) / pxPerSec;
     if (d.mode === 'move') {
       const { lo, hi } = moveRange(d.start, d.end, others, songDuration);
-      const start = clamp(snap(d.start + delta), lo, hi);
+      const start = clamp(snapSec(d.start + delta), lo, hi);
       props.onChange(start, start + (d.end - d.start));
     } else if (d.mode === 'left') {
       const { lo, hi } = resizeLeftRange(d.start, d.end, others);
-      const start = clamp(snap(d.start + delta), lo, hi);
+      const start = clamp(snapSec(d.start + delta), lo, hi);
       props.onChange(start, d.end);
     } else {
       const { lo, hi } = resizeRightRange(d.start, d.end, others, songDuration);
-      const end = clamp(snap(d.end + delta), lo, hi);
+      const end = clamp(snapSec(d.end + delta), lo, hi);
       props.onChange(d.start, end);
     }
   };
@@ -63,7 +68,7 @@ export default function BreathBlock(props: Props) {
         width: Math.max(4, dur * pxPerSec),
         background: props.color,
       }}
-      title={`换气 ${fmtSec(interval.start)} – ${fmtSec(interval.end)}（时长 ${fmtSec(dur)}）\n拖动移动，拖动两端调整时长`}
+      title={`换气 ${fmtSec(interval.start)} – ${fmtSec(interval.end)}（时长 ${fmtSec(dur)}）\n拍位 ${fmtBeatPosition(props.beatMap, interval.start)} – ${fmtBeatPosition(props.beatMap, interval.end)}\n拖动移动，拖动两端调整时长`}
       onPointerDown={begin('move')}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

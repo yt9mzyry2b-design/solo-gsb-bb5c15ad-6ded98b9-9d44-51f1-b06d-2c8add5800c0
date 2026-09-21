@@ -2,6 +2,7 @@ import type { Project } from '../types';
 import { totalSeconds, type UnderSegment } from '../lib/coverage';
 import { MIN_DURATION, clamp } from '../lib/constraints';
 import { uid } from '../lib/storage';
+import BeatMapPanel from './BeatMapPanel';
 
 interface Props {
   project: Project;
@@ -93,6 +94,8 @@ export default function Sidebar({ project, coverage, mutate }: Props) {
         </label>
       </section>
 
+      <BeatMapPanel beatMap={project.beatMap} mutate={mutate} />
+
       <section className="side-section">
         <h3>🎤 声部与歌手</h3>
         {project.parts.map((part) => {
@@ -150,6 +153,7 @@ export default function Sidebar({ project, coverage, mutate }: Props) {
         <ul>
           <li>双击歌手轨道空白处：新增换气段</li>
           <li>拖动换气段：整体移动；拖动两端：调整时长</li>
+          <li>工具条可切换秒/节拍标尺，并开启按拍吸附</li>
           <li>点击换气段选中后，可在右下方面板一键寻优</li>
           <li>Delete / Backspace：删除选中的换气段</li>
         </ul>

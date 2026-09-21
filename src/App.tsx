@@ -7,7 +7,7 @@ import { applyMove, findBestMove, type OptimizeResult } from './lib/optimize';
 import { MIN_DURATION, clamp } from './lib/constraints';
 import { fmtClock, fmtOffset } from './lib/format';
 import Sidebar from './components/Sidebar';
-import Timeline, { type Ghost } from './components/Timeline';
+import Timeline, { type Ghost, type RulerMode } from './components/Timeline';
 import OptimizerPanel from './components/OptimizerPanel';
 
 export default function App() {
@@ -17,6 +17,8 @@ export default function App() {
   const [result, setResult] = useState<OptimizeResult | null>(null);
   const [previewOffset, setPreviewOffset] = useState<number | null>(null);
   const [pxPerSec, setPxPerSec] = useState(10);
+  const [rulerMode, setRulerMode] = useState<RulerMode>('seconds');
+  const [snapToBeat, setSnapToBeat] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -210,10 +212,35 @@ export default function App() {
               <b className={totalUnder > 0 ? 'bad' : 'ok'}>{totalUnder.toFixed(1)}s</b>
               <span className="muted">（{underCount} 处{previewing ? ' · 预览中' : ''}）</span>
             </div>
-            <div className="zoom">
-              <span className="muted">缩放</span>
-              <button onClick={() => setPxPerSec((v) => clamp(v / 1.25, 3, 40))}>−</button>
-              <button onClick={() => setPxPerSec((v) => clamp(v * 1.25, 3, 40))}>＋</button>
+            <div className="toolbar-right">
+              <div className="ruler-switch">
+                <span className="muted">标尺</span>
+                <button
+                  className={rulerMode === 'seconds' ? 'active' : ''}
+                  onClick={() => setRulerMode('seconds')}
+                >
+                  秒
+                </button>
+                <button
+                  className={rulerMode === 'beats' ? 'active' : ''}
+                  onClick={() => setRulerMode('beats')}
+                >
+                  节拍
+                </button>
+              </div>
+              <label className="snap-toggle" title="新增或拖拽换气段时吸附到最近的拍（跨变速点同样生效）">
+                <input
+                  type="checkbox"
+                  checked={snapToBeat}
+                  onChange={(e) => setSnapToBeat(e.target.checked)}
+                />
+                按拍吸附
+              </label>
+              <div className="zoom">
+                <span className="muted">缩放</span>
+                <button onClick={() => setPxPerSec((v) => clamp(v / 1.25, 3, 40))}>−</button>
+                <button onClick={() => setPxPerSec((v) => clamp(v * 1.25, 3, 40))}>＋</button>
+              </div>
             </div>
           </div>
 
@@ -234,6 +261,8 @@ export default function App() {
             selection={selection}
             ghost={ghost}
             pxPerSec={pxPerSec}
+            rulerMode={rulerMode}
+            snapToBeat={snapToBeat}
             onSelect={(sel) => {
               clearOptimization();
               setSelection(sel);
