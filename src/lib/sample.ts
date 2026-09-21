@@ -1,10 +1,12 @@
 import type { Project } from '../types';
-import { uid } from './storage';
+import { uid } from './id';
 
 /**
  * 示例工程：96 秒四部合唱。
  * 女高/女低各 3 人（需 ≥2 人发声），男高/男低各 2 人（需 ≥1 人发声），
  * 换气段故意安排了若干重叠，用于演示未达标标红与自动寻优。
+ * 节拍图 4/4、起始 120 BPM；第 17 小节首拍变速到 90 BPM、第 33 小节回到 120，
+ * 用于演示跨变速点的双向换算与按拍吸附（换气段的秒位置不随之改变）。
  */
 export function createSampleProject(): Project {
   const parts = [
@@ -22,6 +24,15 @@ export function createSampleProject(): Project {
   return {
     name: '示例 · 四部合唱《远方的风》',
     duration: 96,
+    beatMap: {
+      beatsPerBar: 4,
+      beatUnit: 4,
+      startBpm: 120,
+      changes: [
+        { id: uid(), measure: 17, bpm: 90 },
+        { id: uid(), measure: 33, bpm: 120 },
+      ],
+    },
     parts,
     singers: [
       mk('王芳', 0, [[18, 21], [44, 47], [70, 73]]),

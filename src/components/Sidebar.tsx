@@ -1,18 +1,73 @@
 import type { Project } from '../types';
 import { totalSeconds, type UnderSegment } from '../lib/coverage';
 import { MIN_DURATION, clamp } from '../lib/constraints';
-import { uid } from '../lib/storage';
+import { uid } from '../lib/id';
+import {
+  nextFreeMeasure,
+  removeTempoChange,
+  setTempoChange,
+  timeToLocation,
+  updateBeatMap,
+} from '../lib/tempo';
 
 interface Props {
   project: Project;
   coverage: Map<string, UnderSegment[]>;
   /** 以不可变方式修改工程（会自动使寻优结果失效） */
   mutate: (fn: (p: Project) => Project) => void;
+  /** 修改节拍图（不影响换气段的秒位置，也不使寻优结果失效） */
+  mutateBeatMap: (fn: (b: Project['beatMap']) => Project['beatMap']) => void;
 }
 
 const PALETTE = ['#f472b6', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#22d3ee', '#c084fc'];
 
-export default function Sidebar({ project, coverage, mutate }: Props) {
+export default function Sidebar({ project, coverage, mutate, mutateBeatMap }: Props) {
+  const beatMap = project.beatMap;
+
+  // ---------- 节拍图 ----------
+  const setBeatsPerBar = (raw: string) => {
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 1 || n > 16) return;
+    mutateBeatMap((b) => updateBeatMap(b, { beatsPerBar: n }));
+  };
+
+  const setBeatUnit = (raw: string) => {
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 1 || n > 16) return;
+    mutateBeatMap((b) => updateBeatMap(b, { beatUnit: n }));
+  };
+
+  const setStartBpm = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 1 || n > 999) return;
+    mutateBeatMap((b) => updateBeatMap(b, { startBpm: n }));
+  };
+
+  const addChange = () => {
+    const measure = nextFreeMeasure(beatMap);
+    const next = setTempoChange(beatMap, measure, beatMap.startBpm);
+    if (next) mutateBeatMap(() => next);
+  };
+
+  const editChange = (id: string, patch: { measure?: number; bpm?: number }) => {
+    const cur = beatMap.changes.find((c) => c.id === id);
+    if (!cur) return;
+    const measure = patch.measure !== undefined ? Math.round(patch.measure) : cur.measure;
+    const bpm = patch.bpm !== undefined ? Number(patch.bpm) : cur.bpm;
+    if (!Number.isFinite(measure) || measure < 2) return;
+    if (!Number.isFinite(bpm) || bpm < 1 || bpm > 999) return;
+    const next = setTempoChange(beatMap, measure, bpm, id);
+    if (!next) {
+      alert('该小节首拍已有变速点');
+      return;
+    }
+    mutateBeatMap(() => next);
+  };
+
+  // 全曲时长落在第几小节第几拍（只显示，不改变秒位置）
+  const endLoc = timeToLocation(project.duration, beatMap);
+  const endBeatText = `${endLoc.measure}:${Math.round(endLoc.beatInBar * 100) / 100}`;
+
   const setDuration = (raw: string) => {
     const d = Math.round(Number(raw));
     if (!Number.isFinite(d) || d < 10 || d > 3600) return;
@@ -93,6 +148,78 @@ export default function Sidebar({ project, coverage, mutate }: Props) {
         </label>
       </section>
 
+      <section className="side-section beatmap-section">
+        <h3>🎚 节拍图（分段恒速）</h3>
+        <div className="beatmap-row">
+          <label className="field">
+            <span>拍号</span>
+            <input
+              type="number"
+              min={1}
+              max={16}
+              value={beatMap.beatsPerBar}
+              onChange={(e) => setBeatsPerBar(e.target.value)}
+            />
+          </label>
+          <span className="time-slash">/</span>
+          <label className="field unit-field">
+            <input
+              type="number"
+              min={1}
+              max={16}
+              value={beatMap.beatUnit}
+              onChange={(e) => setBeatUnit(e.target.value)}
+            />
+          </label>
+        </div>
+        <label className="field">
+          <span>起始 BPM</span>
+          <input
+            type="number"
+            min={1}
+            max={999}
+            step={0.1}
+            value={beatMap.startBpm}
+            onChange={(e) => setStartBpm(e.target.value)}
+          />
+        </label>
+
+        <div className="tempo-changes">
+          {beatMap.changes.length === 0 && <p className="hint">暂无变速点，全曲按起始 BPM 恒速。</p>}
+          {beatMap.changes.map((c) => (
+            <div className="tempo-row" key={c.id}>
+              <span className="muted">第</span>
+              <input
+                type="number"
+                min={2}
+                max={100000}
+                value={c.measure}
+                onChange={(e) => editChange(c.id, { measure: Number(e.target.value) })}
+              />
+              <span className="muted">小节首拍起</span>
+              <input
+                type="number"
+                min={1}
+                max={999}
+                step={0.1}
+                value={c.bpm}
+                onChange={(e) => editChange(c.id, { bpm: Number(e.target.value) })}
+              />
+              <span className="muted">BPM</span>
+              <button className="icon-btn" title="删除变速点" onClick={() => mutateBeatMap((b) => removeTempoChange(b, c.id))}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="ghost-btn" onClick={addChange}>
+          ＋ 添加变速点
+        </button>
+        <p className="beatmap-end muted">
+          当前时长 {project.duration}s ≈ 第 {endBeatText} 拍（编辑节拍图只改拍位显示，不移动换气段）
+        </p>
+      </section>
+
       <section className="side-section">
         <h3>🎤 声部与歌手</h3>
         {project.parts.map((part) => {
@@ -150,6 +277,7 @@ export default function Sidebar({ project, coverage, mutate }: Props) {
         <ul>
           <li>双击歌手轨道空白处：新增换气段</li>
           <li>拖动换气段：整体移动；拖动两端：调整时长</li>
+          <li>时间轴可在「秒 / 拍」标尺间切换，勾选「按拍吸附」后新增与拖拽自动落到整拍</li>
           <li>点击换气段选中后，可在右下方面板一键寻优</li>
           <li>Delete / Backspace：删除选中的换气段</li>
         </ul>

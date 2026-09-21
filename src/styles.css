@@ -632,3 +632,158 @@ input[type='number'] {
   display: flex;
   gap: 8px;
 }
+
+/* ---------- 节拍图编辑 ---------- */
+.beatmap-section {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.beatmap-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.beatmap-row .field {
+  flex: 1;
+  margin-bottom: 8px;
+}
+
+.beatmap-row .field span {
+  width: auto;
+}
+
+.unit-field {
+  flex: 1;
+}
+
+.time-slash {
+  color: var(--muted);
+  padding-bottom: 8px;
+}
+
+.tempo-changes {
+  margin: 6px 0;
+}
+
+.tempo-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.tempo-row input {
+  width: 56px;
+}
+
+.tempo-row .icon-btn {
+  margin-left: auto;
+}
+
+.beatmap-end {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+/* ---------- 标尺切换 / 吸附 ---------- */
+.ruler-controls {
+  gap: 10px;
+}
+
+.seg-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex: none;
+}
+
+.seg-toggle button {
+  border: none;
+  border-radius: 0;
+  padding: 2px 9px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.seg-toggle button.active {
+  background: #0369a1;
+  color: #fff;
+}
+
+.snap-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.snap-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.ruler-unit {
+  position: absolute;
+  right: 8px;
+  bottom: 2px;
+  font-size: 10px;
+  font-style: normal;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ---------- 节拍标尺 ---------- */
+.tick.beat-major {
+  height: 14px;
+  background: #7dd3fc;
+}
+
+.tick.beat-minor {
+  height: 7px;
+}
+
+.tempo-flag {
+  position: absolute;
+  bottom: 13px;
+  left: 4px;
+  font-size: 10px;
+  font-style: normal;
+  color: #fbbf24;
+  background: rgba(120, 53, 15, 0.55);
+  border: 1px solid #a16207;
+  border-radius: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.beat-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  pointer-events: none;
+}
+
+.beat-grid-line.minor {
+  background: rgba(125, 211, 252, 0.12);
+}
+
+.beat-grid-line.major {
+  background: rgba(125, 211, 252, 0.35);
+}

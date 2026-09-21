@@ -1,10 +1,13 @@
-import type { Project } from '../types';
+import type { BeatMap, Project } from '../types';
+import { uid } from './id';
+import { normalizeBeatMap } from './tempo';
+
+export { uid };
 
 const KEY = 'breath-relay:project:v1';
 
-export function uid(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-}
+/** 清洗时只要求是普通对象，字段合法性交给 normalizeBeatMap。 */
+type BeatMapShape = Partial<BeatMap> | null | undefined;
 
 const num = (v: unknown, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
@@ -52,7 +55,10 @@ export function sanitizeProject(raw: unknown): Project | null {
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  return { name: str(p.name, '未命名曲目'), duration, parts, singers };
+  // 旧工程缺少节拍图字段时使用默认 4/4、120 BPM
+  const beatMap = normalizeBeatMap((p.beatMap as BeatMapShape) ?? undefined);
+
+  return { name: str(p.name, '未命名曲目'), duration, beatMap, parts, singers };
 }
 
 export function loadProject(): Project | null {

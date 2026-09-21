@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Project, Selection } from './types';
 import { createSampleProject } from './lib/sample';
 import { loadProject, sanitizeProject, saveProject, uid } from './lib/storage';
+import { normalizeBeatMap } from './lib/tempo';
 import { partUnder, totalSeconds, type Segment } from './lib/coverage';
 import { applyMove, findBestMove, type OptimizeResult } from './lib/optimize';
 import { MIN_DURATION, clamp } from './lib/constraints';
@@ -39,6 +40,14 @@ export default function App() {
     },
     [clearOptimization],
   );
+
+  /**
+   * 仅修改节拍图：换气段的实际秒位置保持不变（仅重新显示对应拍位），
+   * 因此不影响寻优结果（寻优基于秒），无需清空预览。
+   */
+  const mutateBeatMap = useCallback((fn: (b: Project['beatMap']) => Project['beatMap']) => {
+    setProject((p) => ({ ...p, beatMap: normalizeBeatMap(fn(p.beatMap)) }));
+  }, []);
 
   // 选中的换气段被删除后，清空选择
   useEffect(() => {
@@ -201,7 +210,7 @@ export default function App() {
       </header>
 
       <div className="layout">
-        <Sidebar project={project} coverage={coverage} mutate={mutate} />
+        <Sidebar project={project} coverage={coverage} mutate={mutate} mutateBeatMap={mutateBeatMap} />
 
         <main className="main">
           <div className="toolbar">

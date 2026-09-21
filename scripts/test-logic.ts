@@ -1,6 +1,19 @@
 import { underCoveredSegments, totalSeconds, mergeSegments } from '../src/lib/coverage';
 import { findBestMove } from '../src/lib/optimize';
 import { createSampleProject } from '../src/lib/sample';
+import {
+  beatTicks,
+  beatToTime,
+  fmtLocation,
+  measureBeatToTime,
+  normalizeBeatMap,
+  snapTimeToBeat,
+  timeToBeat,
+  timeToLocation,
+  updateBeatMap,
+} from '../src/lib/tempo';
+import { placeNewIntervalOnBeat } from '../src/lib/constraints';
+import { uid } from '../src/lib/id';
 
 let failures = 0;
 function check(name: string, actual: unknown, expected: unknown) {
@@ -12,6 +25,10 @@ function check(name: string, actual: unknown, expected: unknown) {
     failures++;
     console.log(`FAIL ${name}\n  expected: ${e}\n  actual:   ${a}`);
   }
+}
+
+function near(name: string, actual: number, expected: number, eps = 1e-9) {
+  check(name, Math.abs(actual - expected) < eps, true);
 }
 
 // 1. 半开区间相邻不重叠：[0,2) 与 [2,4) 同一时刻最多 1 人换气 → 2 人声部 min 1 达标
@@ -102,6 +119,112 @@ check(
   mergeSegments([{ start: 5, end: 6 }, { start: 1, end: 2 }, { start: 2, end: 3 }, { start: 2.5, end: 4 }]),
   [{ start: 1, end: 4 }, { start: 5, end: 6 }],
 );
+
+// ---------- 节拍图：默认值、拍↔秒换算、跨变速点吸附 ----------
+
+// 11. 旧工程缺少节拍图 → 默认 4/4、120 BPM（每拍 0.5s、每小节 2s）
+check('default beatmap', normalizeBeatMap(undefined), {
+  beatsPerBar: 4,
+  beatUnit: 4,
+  startBpm: 120,
+  changes: [],
+});
+
+{
+  const bm = normalizeBeatMap(undefined);
+  near('constant beatToTime beat0', beatToTime(0, bm), 0);
+  near('constant beatToTime beat4', beatToTime(4, bm), 2); // 第 2 小节首拍
+  near('constant beatToTime beat12', beatToTime(12, bm), 6);
+  near('constant timeToBeat 3s', timeToBeat(3, bm), 6);
+  check('constant location 0', fmtLocation(timeToLocation(0, bm)), '1:1');
+  check('constant location 2s', fmtLocation(timeToLocation(2, bm)), '2:1');
+  check('constant location 3.5s', fmtLocation(timeToLocation(3.5, bm)), '2:4');
+}
+
+// 12. 分段恒速：4/4，第 3 小节首拍（绝对拍 8，t=4s）从 120 → 60 BPM
+{
+  const bm = normalizeBeatMap({ startBpm: 120, changes: [{ id: uid(), measure: 3, bpm: 60 }] });
+  near('tempo change at beat 8', timeToBeat(4, bm), 8);
+  near('post-change 1 beat = 1s: t=5 → beat9', timeToBeat(5, bm), 9);
+  near('post-change beat10 → t=6', beatToTime(10, bm), 6);
+  // 第 4 小节首拍 = 绝对拍 12 = 4 + 4*1 = 8s
+  near('bar4 downbeat at 8s', measureBeatToTime(4, 1, bm), 8);
+  check('location at 8s', fmtLocation(timeToLocation(8, bm)), '4:1');
+  // 换算可逆
+  near('roundtrip t=7.3', beatToTime(timeToBeat(7.3, bm), bm), 7.3);
+}
+
+// 13. 跨变速点吸附：t=3.9（变速前 120）最近拍是 4.0（变速点本身）；t=4.4（变速后 60）最近拍是 5.0
+{
+  const bm = normalizeBeatMap({ startBpm: 120, changes: [{ id: uid(), measure: 3, bpm: 60 }] });
+  near('snap just before change', snapTimeToBeat(3.9, bm), 4);
+  near('snap just after change', snapTimeToBeat(4.6, bm), 5); // beat 8.6 → 9
+  near('snap mid post-segment', snapTimeToBeat(6.6, bm), 7); // 最近拍 11 → t=7
+}
+
+// 14. 变速点规范化：按拍位排序、重复拍位保留首个；measure=1 并入起始 BPM
+{
+  const bm = normalizeBeatMap({
+    startBpm: 100,
+    changes: [
+      { id: 'b', measure: 5, bpm: 140 },
+      { id: 'a', measure: 3, bpm: 80 },
+      { id: 'dup', measure: 3, bpm: 200 },
+      { id: 'one', measure: 1, bpm: 110 },
+    ],
+  });
+  check('sorted unique changes', bm.changes.map((c) => [c.measure, c.bpm]), [[3, 80], [5, 140]]);
+  check('measure1 folds into startBpm', bm.startBpm, 110);
+  // 非法字段回退默认
+  const junk = normalizeBeatMap({ beatsPerBar: 99, beatUnit: 0, startBpm: -5, changes: [{ measure: 0 }] });
+  check('junk beatmap sanitized', junk, { beatsPerBar: 4, beatUnit: 4, startBpm: 120, changes: [] });
+}
+
+// 15. 编辑节拍图后已有换气段秒位置不变，仅拍位重新显示
+{
+  const p = createSampleProject();
+  const before = JSON.stringify(p.singers.map((s) => s.breaths));
+  const edited = { ...p, beatMap: updateBeatMap(p.beatMap, { startBpm: 60 }) };
+  const after = JSON.stringify(edited.singers.map((s) => s.breaths));
+  check('breath seconds untouched by beatmap edit', after, before);
+  // 王芳首段 [18,21)：120 BPM 时起点为 10:1；改成 60 BPM 后为 5:3
+  check('beat display at 120bpm', fmtLocation(timeToLocation(18, p.beatMap)), '10:1');
+  check('beat display at 60bpm', fmtLocation(timeToLocation(18, edited.beatMap)), '5:3');
+}
+
+// 16. 按拍放置新换气段：跨变速点仍落在整拍；默认一个小节时长（拍数）
+{
+  const bm = normalizeBeatMap({ startBpm: 120, changes: [{ id: uid(), measure: 3, bpm: 60 }] });
+  // 变速点在 t=4。双击 t=3.0 → 起点 3s（拍6），放 4 拍跨变速：拍 6→10 = 3s→6s
+  const seg = placeNewIntervalOnBeat(3.0, [], 20, bm)!;
+  near('on-beat start', seg.start, 3);
+  near('on-beat end across change', seg.end, 6);
+  near('start on integer beat', timeToBeat(seg.start, bm), 6);
+  near('end on integer beat', timeToBeat(seg.end, bm), 10);
+
+  // 空隙不足一小节：缩短到放得下的整拍数
+  const tight = placeNewIntervalOnBeat(0, [{ start: 2, end: 20 }], 20, bm)!;
+  near('tight start', tight.start, 0);
+  near('tight end', tight.end, 2); // 4 拍 × 0.5s
+  check('tight endpoints integer beats', [
+    Number.isInteger(timeToBeat(tight.start, bm)),
+    Number.isInteger(timeToBeat(tight.end, bm)),
+  ], [true, true]);
+
+  // 空隙小于最小长度 → null
+  check('too-small gap', placeNewIntervalOnBeat(0, [{ start: 0.3, end: 20 }], 20, bm), null);
+}
+
+// 17. beatTicks 标注变速点：t=4 的刻度标记 tempoChange 且 bpm=60
+{
+  const bm = normalizeBeatMap({ startBpm: 120, changes: [{ id: uid(), measure: 3, bpm: 60 }] });
+  const ticks = beatTicks(bm, 8);
+  const at4 = ticks.find((tk) => Math.abs(tk.time - 4) < 1e-9)!;
+  check('tick tempoChange flag', at4.tempoChange, true);
+  check('tick bpm after change', at4.bpm, 60);
+  check('tick measure after change', at4.measure, 3);
+  check('first tick flag', ticks[0].tempoChange, true);
+}
 
 console.log(failures === 0 ? '\nALL TESTS PASSED' : `\n${failures} TEST(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
